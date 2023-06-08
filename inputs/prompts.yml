@@ -1,0 +1,6 @@
+manifesto_pledges:
+  prompt: '
+    Extract concrete pledges that the "{{party}}" party made in their 2019 manifesto, within the category "{{category}}".
+    Each pledge should be 1 sentence in length but in addition should have supporting information about what the party`s pledge is.
+    Included from embeddings is context from the party`s 2019 manifesto:
+    '

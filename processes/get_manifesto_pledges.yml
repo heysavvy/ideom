@@ -1,0 +1,51 @@
+processes:
+  get_manifesto_pledges:
+    steps:
+      - name: Get Manifesto URLs
+        key: get_manifesto_urls
+        type: load_input_data
+        with:
+          input_key: manifesto_urls
+      - name: Get Categories
+        key: get_categories
+        type: load_input_data
+        with:
+          input_key: categories
+      - name: Loop over Manifesto URLs
+        key: loop_over_manifesto_urls
+        type: loop
+        with:
+          items: ${{ steps.get_manifesto_urls.outputs.data }}
+        steps:
+          - name: Extract Embeddings from PDF
+            key: extract_embeddings
+            type: extract_embeddings
+            with:
+              input_type: pdf
+              url: ${{ steps.get_manifesto_urls.current_step.item }}
+              output: ${{ steps.get_manifesto_urls.current_step.item }}.json
+          - name: Loop over Categories
+            key: loop_over_categories
+            type: loop
+            with:
+              items: ${{ steps.get_categories.outputs.data }}
+            steps:
+              - name: Extract Policies for Category from Manifesto
+                key: extract_policies
+                type: run_prompt_with_embeddings
+                with:
+                  prompt: '
+                    Extract concrete pledges that the "{{party}}" party made in their 2019 manifesto, within the category "{{category}}".
+                    Each pledge should be 1 sentence in length but in addition should have supporting information about what the party`s pledge is.
+                    Included from embeddings is context from the party`s 2019 manifesto:
+                    '
+                  embeddings: ${{ steps.extract_embeddings.outputs.embeddings }}
+              - name: Save Policies
+                key: save_policies
+                type: save_list
+                with:
+                  output_key: policies
+                  item: ${{ steps.extract_policies.outputs.policies }}
+                  metadata:
+                    category: ${{ steps.get_categories.current_step.item }}
+                    manifesto: ${{ steps.get_manifesto_urls.current_step.item }}

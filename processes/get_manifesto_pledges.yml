@@ -23,7 +23,7 @@ processes:
             with:
               input_type: pdf
               url: ${{ steps.loop_over_manifesto_urls.current_step.item }}
-              output: ${{ steps.loop_over_manifesto_urls.current_step.item }}.json
+              output: ${{ steps.loop_over_manifesto_urls.current_step.item }}.yml
           - name: Loop over Categories
             key: loop_over_categories
             type: loop

@@ -1,7 +1,56 @@
 const fs = require("fs");
 const yaml = require("js-yaml");
+const fetch = require("node-fetch");
+const pdfjs = require("pdfjs-dist");
 const { set } = require("lodash");
 const get = require("lodash/get");
+
+const { Chroma } = require("langchain/vectorstores/chroma");
+const { OpenAIEmbeddings } = require("langchain/embeddings/openai");
+const { TextLoader } = require("langchain/document_loaders/fs/text");
+
+// load();
+async function load() {
+  // // Create docs with a loader
+  // const loader = new TextLoader("example.txt");
+  // const docs = await loader.load();
+
+  // text sample from Godel, Escher, Bach
+  const vectorStore = await Chroma.fromTexts(
+    [
+      `Tortoise: Labyrinth? Labyrinth? Could it Are we in the notorious Little
+        Harmonic Labyrinth of the dreaded Majotaur?`,
+      "Achilles: Yiikes! What is that?",
+      `Tortoise: They say-although I person never believed it myself-that an I
+        Majotaur has created a tiny labyrinth sits in a pit in the middle of
+        it, waiting innocent victims to get lost in its fears complexity.
+        Then, when they wander and dazed into the center, he laughs and
+        laughs at them-so hard, that he laughs them to death!`,
+      "Achilles: Oh, no!",
+      "Tortoise: But it's only a myth. Courage, Achilles.",
+    ],
+    [{ id: 2 }, { id: 1 }, { id: 3 }],
+    new OpenAIEmbeddings({
+      openAIApiKey: "",
+    }),
+    {
+      collectionName: "godel-escher-bach",
+    }
+  );
+
+  const response = await vectorStore.similaritySearch("scared", 2);
+
+  console.log(response);
+  /*
+[
+  Document { pageContent: 'Achilles: Oh, no!', metadata: {} },
+  Document {
+    pageContent: 'Achilles: Yiikes! What is that?',
+    metadata: { id: 1 }
+  }
+]
+*/
+}
 
 // Load the YAML file
 const filePath = "processes/get_manifesto_pledges.yml";
@@ -56,6 +105,9 @@ async function processSteps(steps, localStepData) {
         console.log(`Extracting embeddings from ${step.with.input_type}`);
         console.log(`URL: ${url}`);
         console.log(`Output: ${output}`);
+        if (step.with.input_type == "pdf") {
+          const embeddings = await extractEmbeddingsFromPdf(url, output);
+        }
         break;
       case "run_prompt_with_embeddings":
         // Implement the logic for running prompt with embeddings
@@ -189,4 +241,70 @@ async function saveOutputData(outputKey, item, metadata) {
   } catch (error) {
     console.error(`Error saving item to '${outputFilePath}':`, error);
   }
+}
+
+function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
+  // pdfUrl =
+  //   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+
+  // Usage
+  const chunkSize = 10;
+  const outputFilePath = `outputs/${outputFileName.replace(
+    /[/\\?%*:|"<>]/g,
+    "_"
+  )}`;
+
+  fetchPDF(pdfUrl)
+    .then((pdfData) => extractTextChunks(pdfData, chunkSize))
+    .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
+    .catch((error) => console.error("Error:", error));
+}
+
+// Function to fetch the PDF from a URL
+async function fetchPDF(url) {
+  const response = await fetch(url);
+  const buffer = await response.buffer();
+  return new Uint8Array(buffer);
+}
+
+// Function to extract text from the PDF and break it into chunks
+async function extractTextChunks(pdfData, chunkSize) {
+  console.log("Extracting text from PDF...");
+  console.log("Chunk size:", chunkSize);
+
+  const loadingTask = await pdfjs.getDocument(pdfData);
+
+  const doc = await loadingTask.promise;
+  console.log("PDF loaded", doc);
+  const numPages = doc.numPages;
+  console.log("Number of pages:", numPages);
+
+  let chunks = [];
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await doc.getPage(pageNum);
+    console.log("Page loaded:", pageNum);
+    console.log("Extracting text...");
+    const content = await page.getTextContent();
+    console.log("Text extracted");
+    console.log("Number of items:", content.items.length);
+    // console.log("Items:", content.items);
+    const strings = content.items.map((item) => item.str);
+
+    // Break the text into chunks of desired size
+    for (let i = 0; i < strings.length; i += chunkSize) {
+      const chunk = strings.slice(i, i + chunkSize).join(" ");
+      chunks.push(chunk);
+    }
+  }
+
+  return chunks;
+}
+
+// Function to store chunks in a YAML file
+function storeChunksAsYAML(chunks, filePath) {
+  const data = { chunks };
+  const yamlString = yaml.dump(data);
+  fs.writeFileSync(filePath, yamlString);
+  console.log("Chunks stored in YAML file:", filePath);
 }

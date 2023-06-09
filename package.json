@@ -9,7 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "chromadb": "^1.5.2",
     "js-yaml": "^4.1.0",
-    "lodash": "^4.17.21"
+    "langchain": "^0.0.92",
+    "lodash": "^4.17.21",
+    "pdfjs-dist": "^3.7.107"
   }
 }

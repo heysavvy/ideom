@@ -1,5 +1,6 @@
 const fs = require("fs");
 const yaml = require("js-yaml");
+const { set } = require("lodash");
 const get = require("lodash/get");
 
 // Load the YAML file
@@ -166,18 +167,21 @@ async function saveOutputData(outputKey, item, metadata) {
       listData = yaml.load(outputContent);
     }
 
+    console.log("listData", listData);
+
+    if (!listData) listData = {};
+
+    let path = "";
+
     // Group data by each metadata field
     for (const [key, value] of Object.entries(metadata)) {
-      if (!listData[key]) {
-        listData[key] = [];
-      }
-
-      const newItem = {
-        item,
-        metadata: { ...metadata },
-      };
-      listData[key].push(newItem);
+      console.log("key, value", key, value);
+      path = path ? `${path}.${value.split(".").join(",")}` : value;
     }
+
+    console.log("path", path);
+
+    set(listData, path, item);
 
     const updatedContent = yaml.dump(listData);
     fs.writeFileSync(outputFilePath, updatedContent);

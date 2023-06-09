@@ -22,8 +22,8 @@ processes:
             type: extract_embeddings
             with:
               input_type: pdf
-              url: ${{ steps.get_manifesto_urls.current_step.item }}
-              output: ${{ steps.get_manifesto_urls.current_step.item }}.json
+              url: ${{ steps.loop_over_manifesto_urls.current_step.item }}
+              output: ${{ steps.loop_over_manifesto_urls.current_step.item }}.json
           - name: Loop over Categories
             key: loop_over_categories
             type: loop
@@ -39,13 +39,16 @@ processes:
                     Each pledge should be 1 sentence in length but in addition should have supporting information about what the party`s pledge is.
                     Included from embeddings is context from the party`s 2019 manifesto:
                     '
-                  embeddings: ${{ steps.extract_embeddings.outputs.embeddings }}
+                  embeddings: ${{ steps.loop_over_manifesto_urls.current_step.steps.extract_embeddings.outputs.embeddings }}
+                  variables:
+                    party: ${{ steps.loop_over_manifesto_urls.current_step.item }}
+                    category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
               - name: Save Policies
                 key: save_policies
-                type: save_list
+                type: save_output_data
                 with:
                   output_key: policies
-                  item: ${{ steps.extract_policies.outputs.policies }}
+                  item: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.steps.extract_policies.outputs }}
                   metadata:
-                    category: ${{ steps.get_categories.current_step.item }}
-                    manifesto: ${{ steps.get_manifesto_urls.current_step.item }}
+                    category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
+                    manifesto: ${{ steps.loop_over_manifesto_urls.current_step.item }}

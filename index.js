@@ -20,18 +20,28 @@ processSteps(config.processes.get_manifesto_pledges.steps).then((stepData) => {
 async function processSteps(steps, localStepData) {
   const stepData = localStepData || allStepData;
   for (const step of steps) {
+    // Wait 1s
+    // await new Promise((resolve) => setTimeout(resolve, 500));
     stepData[step.key] = {
       outputs: {},
     };
     switch (step.type) {
       case "loop":
         const items = replacePlaceholders(step.with.items);
-        console.log(`Looping over items: ${items}`);
+        console.log(`Looping over items: ${items}`, typeof items);
+        stepData[step.key].inputs = items;
         stepData[step.key].items = [];
-        for (const item of items) {
-          const innerSteps = await processSteps(step.steps);
-          stepData[step.key].items.push(innerSteps);
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          console.log(`Loop - item: ${item}`);
+          stepData[step.key].current_step = { item, steps: {} };
+          const innerSteps = await processSteps(
+            step.steps,
+            stepData[step.key].current_step.steps
+          );
+          stepData[step.key].items.push({ item, steps: innerSteps });
         }
+        // delete stepData[step.key].current_step;
         break;
       case "load_input_data":
         console.log(`Loading input data: ${step.with.input_key}`);
@@ -40,9 +50,11 @@ async function processSteps(steps, localStepData) {
         break;
       case "extract_embeddings":
         // Implement the logic for extracting embeddings
+        const url = replacePlaceholders(step.with.url);
+        const output = replacePlaceholders(step.with.output);
         console.log(`Extracting embeddings from ${step.with.input_type}`);
-        console.log(`URL: ${step.with.url}`);
-        console.log(`Output: ${step.with.output}`);
+        console.log(`URL: ${url}`);
+        console.log(`Output: ${output}`);
         break;
       case "run_prompt_with_embeddings":
         // Implement the logic for running prompt with embeddings
@@ -50,14 +62,16 @@ async function processSteps(steps, localStepData) {
         console.log(`Prompt: ${step.with.prompt}`);
         console.log(`Embeddings: ${step.with.embeddings}`);
         break;
-      case "save_list":
-        // Implement the logic for saving the list
-        console.log(`Saving list: ${step.with.list}`);
+      case "save_output_data":
+        // Implement the logic for saving the output
+        console.log(`Saving Output Data: ${step.with.output_key}`);
         console.log(`Item: ${step.with.item}`);
         console.log(`Metadata: ${JSON.stringify(step.with.metadata)}`);
-        const item = step.with.item;
-        const metadata = step.with.metadata;
-        await saveOutputData(step.with.list, item, metadata);
+        const item = replacePlaceholders(step.with.item);
+        const metadata = replacePlaceholders(step.with.metadata);
+        console.log(`Replaced Item: ${item}`);
+        console.log(`Replaced Metadata: ${JSON.stringify(metadata)}`);
+        await saveOutputData(step.with.output_key, item, metadata);
         stepData[step.key].outputs.data = { item, metadata };
         break;
       default:
@@ -70,18 +84,54 @@ async function processSteps(steps, localStepData) {
 
 // Recursive function to replace placeholders with data
 function replacePlaceholders(value) {
-  console.log("replacePlaceholders", value, allStepData);
-  // Check if value is a placeholder
-  if (value.startsWith("${{") && value.endsWith("}}")) {
-    const key = value.slice(4, -3).split(".").slice(1).join(".");
-    const data = get(allStepData, key);
-    console.log("key, data", key, data);
-    return data;
+  const result = replacePlaceholders1(value);
+  console.log("replacePlaceholders", allStepData, value, result);
+  return result;
+}
+function replacePlaceholders1(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => replacePlaceholders(item));
   }
+
+  // Check if value is an object
+  if (typeof value === "object") {
+    const newValue = {};
+    for (const [key, val] of Object.entries(value)) {
+      newValue[key] = replacePlaceholders(val);
+    }
+    return newValue;
+  }
+
+  // Check if value is a placeholder
+  if (typeof value === "string") {
+    const wholeStringPattern = /^\$\{\{(\s)?(\w+(\.\w+)*)(\s)?\}\}$/g;
+    if (value.trim().match(wholeStringPattern)) {
+      const path = value.trim().slice(4, -3).split(".").slice(1).join(".");
+      const result = get(allStepData, path);
+      // console.log("PATH, RESULT", path, result);
+      // console.log(typeof result);
+      return result !== undefined ? result : value;
+    }
+    const partialPattern = /\$\{\{(\s)?(\w+(\.\w+)*)(\s)?\}\}/g;
+    const result = value.replace(partialPattern, (match, str) => {
+      // console.log("MATCH", match);
+      // console.log("STR", str);
+      const path = match.slice(4, -3).split(".").slice(1).join(".");
+      const val = get(allStepData, path);
+      // console.log("PATH, VALUE", path, val);
+      // console.log(typeof val);
+      return val !== undefined ? val : match;
+    });
+
+    // console.log("RESULT", result);
+
+    return result;
+  }
+
   return value;
 }
 
-// Implement the logic for loading the list
+// Implement the logic for loading the data
 async function loadInputData(inputKey) {
   const dataPath = `inputs/${inputKey}.yml`;
 
@@ -89,7 +139,7 @@ async function loadInputData(inputKey) {
     const dataContent = fs.readFileSync(dataPath, "utf8");
     const dataData = yaml.load(dataContent);
     if (dataData) {
-      console.log(`Loaded list '${inputKey}':`, dataData);
+      console.log(`Loaded data '${inputKey}':`, dataData);
     }
 
     return dataData;
@@ -99,10 +149,10 @@ async function loadInputData(inputKey) {
   }
 }
 
-// Implement the logic for saving the list
-async function saveOutputData(listName, item, metadata) {
+// Implement the logic for saving the data
+async function saveOutputData(outputKey, item, metadata) {
   const outputDir = "outputs";
-  const outputFilePath = `${outputDir}/${listName}.yaml`;
+  const outputFilePath = `${outputDir}/${outputKey}.yml`;
 
   try {
     // Create the outputs directory if it doesn't exist

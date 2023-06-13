@@ -43,12 +43,12 @@ processes:
                   variables:
                     party: ${{ steps.loop_over_manifesto_urls.current_step.item }}
                     category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
-              - name: Save Policies
-                key: save_policies
-                type: save_output_data
-                with:
-                  output_key: policies
-                  item: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.steps.extract_policies.outputs }}
-                  metadata:
-                    category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
-                    manifesto: ${{ steps.loop_over_manifesto_urls.current_step.item }}
+              # - name: Save Policies
+              #   key: save_policies
+              #   type: save_output_data
+              #   with:
+              #     output_key: policies
+              #     item: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.steps.extract_policies.outputs }}
+              #     metadata:
+              #       category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
+              #       manifesto: ${{ steps.loop_over_manifesto_urls.current_step.item }}

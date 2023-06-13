@@ -10,9 +10,11 @@
   "license": "ISC",
   "dependencies": {
     "chromadb": "^1.5.2",
+    "dotenv": "^16.1.4",
     "js-yaml": "^4.1.0",
     "langchain": "^0.0.92",
     "lodash": "^4.17.21",
-    "pdfjs-dist": "^3.7.107"
+    "pdfjs-dist": "^3.7.107",
+    "vectordb": "^0.1.5"
   }
 }

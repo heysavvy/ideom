@@ -4,10 +4,15 @@ const fetch = require("node-fetch");
 const pdfjs = require("pdfjs-dist");
 const { set } = require("lodash");
 const get = require("lodash/get");
-
+const lancedb = require("vectordb");
+const { Configuration, OpenAIApi } = require("openai");
+const readline = require("readline/promises");
 const { Chroma } = require("langchain/vectorstores/chroma");
 const { OpenAIEmbeddings } = require("langchain/embeddings/openai");
 const { TextLoader } = require("langchain/document_loaders/fs/text");
+
+require("dotenv").config();
+const { stdin: input, stdout: output } = require("process");
 
 // load();
 async function load() {
@@ -243,27 +248,141 @@ async function saveOutputData(outputKey, item, metadata) {
   }
 }
 
-function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
+async function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
   // pdfUrl =
   //   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
   // Usage
+
+  console.log("Extracting embeddings from PDF");
   const chunkSize = 10;
   const outputFilePath = `outputs/${outputFileName.replace(
     /[/\\?%*:|"<>]/g,
     "_"
   )}`;
 
-  fetchPDF(pdfUrl)
+  const data = await fetchPDF(pdfUrl)
     .then((pdfData) => extractTextChunks(pdfData, chunkSize))
     .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
     .catch((error) => console.error("Error:", error));
+
+  // Embedded in your app, no servers to manage!
+
+  console.log(1);
+  // Persist your embeddings, metadata, text, images, video, audio & more
+  const db = await lancedb.connect("./data/my_db");
+  // const table = await db.openTable("my_table");
+
+  // const table = await db.createTable("my_table", [
+  //   { id: 1, vector: [3.1, 4.1], item: "foo", price: 10.0 },
+  //   { id: 2, vector: [5.9, 26.5], item: "bar", price: 20.0 },
+  // ]);
+
+  // // Production-ready, scalable vector search with optional filters
+  // const query = await table
+  //   .search([0.1, 0.3, 0.2])
+  //   .where("item != 'item foo'")
+  //   .limit(2)
+  //   .execute();
+
+  // You need to provide an OpenAI API key, here we read it from the OPENAI_API_KEY environment variable
+  console.log(2);
+  const apiKey = process.env.OPENAI_API_KEY;
+  console.log("API KEY", apiKey);
+  // The embedding function will create embeddings for the 'context' column
+  const embedFunction = new lancedb.OpenAIEmbeddingFunction("context", apiKey);
+
+  const dataAsObject = data.map((item, index) => ({
+    // Generate a string ID using Math.random(),
+    id: index,
+    text: item,
+  }));
+  const dataWithContext = contextualize(dataAsObject, 6, "text", "context");
+  console.log("dataWithContext", dataWithContext.slice(0, 10));
+  // Connects to LanceDB
+  // const db = await lancedb.connect("data/youtube-lancedb");
+  // Wait for 5s
+  // await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  let tbl;
+
+  if ((await db.tableNames()).includes("vectors")) {
+    tbl = await db.openTable("vectors", embedFunction);
+    console.log("Opened table");
+  } else {
+    console.log("No table found - creating new table");
+    tbl = await db.createTable("vectors", dataWithContext, embedFunction);
+    console.log("Created table");
+  }
+
+  // await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  console.log(3);
+  const configuration = new Configuration({ apiKey });
+  const openai = new OpenAIApi(configuration);
+  // Create readline interface for terminal chat
+  const rl = readline.createInterface({ input, output });
+  const query = await rl.question("Prompt:");
+  console.log(`Searching for ${query}`);
+  // wait 5s
+  // await new Promise((resolve) => setTimeout(resolve, 5000));
+  const results = await tbl
+    .search(query)
+    .select(["id", "text", "context"])
+    .limit(60)
+    .execute();
+
+  console.log("RESULTS", results);
+
+  const response = await openai.createCompletion({
+    model: "text-davinci-003",
+    prompt: createPrompt(query, results),
+    max_tokens: 400,
+    temperature: 0,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+  });
+  console.log(response.data.choices[0].text);
+}
+
+// Creates a prompt by aggregating all relevant contexts
+function createPrompt(query, context) {
+  let prompt =
+    "Answer the question based on the context below.\n\n" + "Context:\n";
+
+  // need to make sure our prompt is not larger than max size
+  prompt =
+    prompt +
+    context
+      .map((c) => c.context)
+      .join("\n\n---\n\n")
+      .substring(0, 3750);
+  prompt = prompt + `\n\nQuestion: ${query}\nAnswer:`;
+  console.log("prompt", prompt);
+  return prompt;
+}
+
+// Each chunk has a small text column, we include previous chunks in order to
+// have more context information when creating embeddings
+function contextualize(rows, contextSize, textColumn, contextColumn) {
+  for (let i = 0; i < rows.length; i++) {
+    const start = i - contextSize > 0 ? i - contextSize : 0;
+    rows[i].context = rows
+      .slice(start, i + 1)
+      .map((r) => r.text)
+      .join(" ");
+  }
+  return rows;
 }
 
 // Function to fetch the PDF from a URL
 async function fetchPDF(url) {
+  console.log("Fetching PDF...");
   const response = await fetch(url);
+  console.log("PDF fetched");
   const buffer = await response.buffer();
+  console.log("PDF fetched 2");
   return new Uint8Array(buffer);
 }
 
@@ -302,9 +421,11 @@ async function extractTextChunks(pdfData, chunkSize) {
 }
 
 // Function to store chunks in a YAML file
-function storeChunksAsYAML(chunks, filePath) {
+async function storeChunksAsYAML(chunks, filePath) {
   const data = { chunks };
   const yamlString = yaml.dump(data);
   fs.writeFileSync(filePath, yamlString);
   console.log("Chunks stored in YAML file:", filePath);
+
+  return chunks;
 }

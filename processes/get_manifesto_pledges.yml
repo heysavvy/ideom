@@ -43,6 +43,12 @@ processes:
                   variables:
                     party: ${{ steps.loop_over_manifesto_urls.current_step.item }}
                     category: ${{ steps.loop_over_manifesto_urls.current_step.steps.loop_over_categories.current_step.item }}
+              - name: AI moderation step
+                key: ai_moderation
+                type: ai_moderation
+              - name: Human moderation step
+                key: human_moderation
+                type: human_moderation
               # - name: Save Policies
               #   key: save_policies
               #   type: save_output_data

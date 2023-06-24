@@ -1,33 +1,54 @@
-const fs = require("fs");
-const yaml = require("js-yaml");
-const fetch = require("node-fetch");
-const pdfjs = require("pdfjs-dist");
-const { set } = require("lodash");
-const get = require("lodash/get");
-const lancedb = require("vectordb");
-const { Configuration, OpenAIApi } = require("openai");
-const readline = require("readline/promises");
-const { OpenAIEmbeddings } = require("langchain/embeddings/openai");
+import fs from "fs";
+import yaml from "js-yaml";
+import fetch from "node-fetch";
+import pdfjs from "pdfjs-dist";
+import { set } from "lodash";
+import get from "lodash/get";
+import lancedb from "vectordb";
+import { Configuration, OpenAIApi } from "openai";
+import readline from "readline/promises";
+// import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
-require("dotenv").config();
-const { stdin: input, stdout: output } = require("process");
+import dotenv from "dotenv";
+import { stdin as input, stdout as output } from "process";
+
+type Step = {
+  name: string;
+  key: string;
+  type: string;
+  with: {
+    [key: string]: any;
+  };
+  steps: Step[];
+};
+
+dotenv.config();
 
 // Load the YAML file
 const filePath = "processes/get_manifesto_pledges.yml";
 const yamlContent = fs.readFileSync(filePath, "utf8");
 
+let allStepData: any = {};
+
 // Parse the YAML into a JavaScript object
-const config = yaml.load(yamlContent);
+const config: any = yaml.load(yamlContent);
 
-const allStepData = {};
+// // Process the main steps
+// processSteps(config.processes.get_manifesto_pledges.steps).then((stepData) => {
+//   console.log("stepData:\n", JSON.stringify(stepData, null, 2));
+// });
 
-// Process the main steps
-processSteps(config.processes.get_manifesto_pledges.steps).then((stepData) => {
-  console.log("stepData:\n", JSON.stringify(stepData, null, 2));
-});
+export default function run(querySteps: Step[] | null) {
+  const steps: Step[] =
+    querySteps || (config.processes.get_manifesto_pledges.steps as Step[]);
+
+  allStepData = {};
+
+  return processSteps(steps);
+}
 
 // Process the steps
-async function processSteps(steps, localStepData) {
+async function processSteps(steps: Step[], localStepData?: any) {
   const stepData = localStepData || allStepData;
   for (const step of steps) {
     // Wait 1s
@@ -96,23 +117,23 @@ async function processSteps(steps, localStepData) {
 }
 
 // Recursive function to replace placeholders with data
-function replacePlaceholders(value) {
+function replacePlaceholders<T>(value: T): T {
   const result = replacePlaceholders1(value);
   console.log("replacePlaceholders", allStepData, value, result);
   return result;
 }
-function replacePlaceholders1(value) {
+function replacePlaceholders1<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map((item) => replacePlaceholders(item));
+    return value.map((item) => replacePlaceholders(item)) as T;
   }
 
   // Check if value is an object
   if (typeof value === "object") {
     const newValue = {};
-    for (const [key, val] of Object.entries(value)) {
-      newValue[key] = replacePlaceholders(val);
+    for (const [key, val] of Object.entries(value as any)) {
+      (newValue as any)[key] = replacePlaceholders(val);
     }
-    return newValue;
+    return newValue as T;
   }
 
   // Check if value is a placeholder
@@ -138,14 +159,14 @@ function replacePlaceholders1(value) {
 
     // console.log("RESULT", result);
 
-    return result;
+    return result as T;
   }
 
   return value;
 }
 
 // Implement the logic for loading the data
-async function loadInputData(inputKey) {
+async function loadInputData(inputKey: string) {
   const dataPath = `inputs/${inputKey}.yml`;
 
   try {
@@ -163,7 +184,11 @@ async function loadInputData(inputKey) {
 }
 
 // Implement the logic for saving the data
-async function saveOutputData(outputKey, item, metadata) {
+async function saveOutputData(
+  outputKey: string,
+  item: any,
+  metadata: { [key: string]: any }
+) {
   const outputDir = "outputs";
   const outputFilePath = `${outputDir}/${outputKey}.yml`;
 
@@ -176,7 +201,7 @@ async function saveOutputData(outputKey, item, metadata) {
     let listData = {};
     if (fs.existsSync(outputFilePath)) {
       const outputContent = fs.readFileSync(outputFilePath, "utf8");
-      listData = yaml.load(outputContent);
+      listData = yaml.load(outputContent) as any;
     }
 
     console.log("listData", listData);
@@ -203,7 +228,10 @@ async function saveOutputData(outputKey, item, metadata) {
   }
 }
 
-async function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
+async function extractEmbeddingsFromPdf(
+  pdfUrl: string,
+  outputFileName: string
+) {
   // pdfUrl =
   //   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
@@ -242,17 +270,17 @@ async function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
 
   // You need to provide an OpenAI API key, here we read it from the OPENAI_API_KEY environment variable
   console.log(2);
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY as string;
   console.log("API KEY", apiKey);
   // The embedding function will create embeddings for the 'context' column
   const embedFunction = new lancedb.OpenAIEmbeddingFunction("context", apiKey);
 
-  const dataAsObject = data.map((item, index) => ({
+  const dataAsObject = data.map((item: any, index: number) => ({
     // Generate a string ID using Math.random(),
     id: index,
     text: item,
   }));
-  const dataWithContext = contextualize(dataAsObject, 6, "text", "context");
+  const dataWithContext = contextualize(dataAsObject, 6);
   console.log("dataWithContext", dataWithContext.slice(0, 10));
   // Connects to LanceDB
   // const db = await lancedb.connect("data/youtube-lancedb");
@@ -302,7 +330,7 @@ async function extractEmbeddingsFromPdf(pdfUrl, outputFileName) {
 }
 
 // Creates a prompt by aggregating all relevant contexts
-function createPrompt(query, context) {
+function createPrompt(query: string, context: any) {
   let prompt =
     "Answer the question based on the context below.\n\n" + "Context:\n";
 
@@ -310,7 +338,7 @@ function createPrompt(query, context) {
   prompt =
     prompt +
     context
-      .map((c) => c.context)
+      .map((c: any) => c.context)
       .join("\n\n---\n\n")
       .substring(0, 3750);
   prompt = prompt + `\n\nQuestion: ${query}\nAnswer:`;
@@ -320,7 +348,7 @@ function createPrompt(query, context) {
 
 // Each chunk has a small text column, we include previous chunks in order to
 // have more context information when creating embeddings
-function contextualize(rows, contextSize, textColumn, contextColumn) {
+function contextualize(rows: any[], contextSize: number) {
   for (let i = 0; i < rows.length; i++) {
     const start = i - contextSize > 0 ? i - contextSize : 0;
     rows[i].context = rows
@@ -332,7 +360,7 @@ function contextualize(rows, contextSize, textColumn, contextColumn) {
 }
 
 // Function to fetch the PDF from a URL
-async function fetchPDF(url) {
+async function fetchPDF(url: string) {
   console.log("Fetching PDF...");
   const response = await fetch(url);
   console.log("PDF fetched");
@@ -342,9 +370,11 @@ async function fetchPDF(url) {
 }
 
 // Function to extract text from the PDF and break it into chunks
-async function extractTextChunks(pdfData, chunkSize) {
+async function extractTextChunks(pdfData: any, chunkSize: number) {
   console.log("Extracting text from PDF...");
   console.log("Chunk size:", chunkSize);
+
+  console.log("pdfjs", pdfjs);
 
   const loadingTask = await pdfjs.getDocument(pdfData);
 
@@ -363,7 +393,7 @@ async function extractTextChunks(pdfData, chunkSize) {
     console.log("Text extracted");
     console.log("Number of items:", content.items.length);
     // console.log("Items:", content.items);
-    const strings = content.items.map((item) => item.str);
+    const strings = content.items.map((item) => (item as any).str as string);
 
     // Break the text into chunks of desired size
     for (let i = 0; i < strings.length; i += chunkSize) {
@@ -376,7 +406,7 @@ async function extractTextChunks(pdfData, chunkSize) {
 }
 
 // Function to store chunks in a YAML file
-async function storeChunksAsYAML(chunks, filePath) {
+async function storeChunksAsYAML(chunks: any, filePath: string) {
   const data = { chunks };
   const yamlString = yaml.dump(data);
   fs.writeFileSync(filePath, yamlString);

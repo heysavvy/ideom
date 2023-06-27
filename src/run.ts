@@ -3,7 +3,7 @@ import * as yaml from "js-yaml";
 import fetch from "node-fetch";
 import * as pdfjs from "pdfjs-dist";
 import { get, set } from "lodash";
-import * as lancedb from "vectordb";
+// import * as lancedb from "vectordb";
 import { Configuration, OpenAIApi } from "openai";
 import { createClient } from "@supabase/supabase-js";
 
@@ -382,91 +382,91 @@ async function saveToVectorDatabase(
     }
   }
 }
-async function saveToLocalVectorDatabase(
-  chunks: string[],
-  tableName: string,
-  metadata: { [key: string]: any }
-) {
-  console.log(1);
-  // Persist your embeddings, metadata, text, images, video, audio & more
-  const db = await lancedb.connect(`./data/my_db/${tableName}`);
-  // const table = await db.openTable("my_table");
+// async function saveToLocalVectorDatabase(
+//   chunks: string[],
+//   tableName: string,
+//   metadata: { [key: string]: any }
+// ) {
+//   console.log(1);
+//   // Persist your embeddings, metadata, text, images, video, audio & more
+//   const db = await lancedb.connect(`./data/my_db/${tableName}`);
+//   // const table = await db.openTable("my_table");
 
-  // const table = await db.createTable("my_table", [
-  //   { id: 1, vector: [3.1, 4.1], item: "foo", price: 10.0 },
-  //   { id: 2, vector: [5.9, 26.5], item: "bar", price: 20.0 },
-  // ]);
+//   // const table = await db.createTable("my_table", [
+//   //   { id: 1, vector: [3.1, 4.1], item: "foo", price: 10.0 },
+//   //   { id: 2, vector: [5.9, 26.5], item: "bar", price: 20.0 },
+//   // ]);
 
-  // // Production-ready, scalable vector search with optional filters
-  // const query = await table
-  //   .search([0.1, 0.3, 0.2])
-  //   .where("item != 'item foo'")
-  //   .limit(2)
-  //   .execute();
+//   // // Production-ready, scalable vector search with optional filters
+//   // const query = await table
+//   //   .search([0.1, 0.3, 0.2])
+//   //   .where("item != 'item foo'")
+//   //   .limit(2)
+//   //   .execute();
 
-  // You need to provide an OpenAI API key, here we read it from the OPENAI_API_KEY environment variable
-  console.log(2);
-  const apiKey = process.env.OPENAI_API_KEY as string;
-  console.log("API KEY", apiKey);
-  // The embedding function will create embeddings for the 'context' column
-  const embedFunction = new lancedb.OpenAIEmbeddingFunction("context", apiKey);
+//   // You need to provide an OpenAI API key, here we read it from the OPENAI_API_KEY environment variable
+//   console.log(2);
+//   const apiKey = process.env.OPENAI_API_KEY as string;
+//   console.log("API KEY", apiKey);
+//   // The embedding function will create embeddings for the 'context' column
+//   const embedFunction = new lancedb.OpenAIEmbeddingFunction("context", apiKey);
 
-  const dataAsObject = chunks.map((item: any, index: number) => ({
-    // Generate a string ID using Math.random(),
-    id: index,
-    text: item,
-    metadata,
-  }));
-  const dataWithContext = contextualize(dataAsObject, 6);
-  console.log("dataWithContext", dataWithContext.slice(0, 10));
-  // Connects to LanceDB
-  // const db = await lancedb.connect("data/youtube-lancedb");
-  // Wait for 5s
-  // await new Promise((resolve) => setTimeout(resolve, 5000));
+//   const dataAsObject = chunks.map((item: any, index: number) => ({
+//     // Generate a string ID using Math.random(),
+//     id: index,
+//     text: item,
+//     metadata,
+//   }));
+//   const dataWithContext = contextualize(dataAsObject, 6);
+//   console.log("dataWithContext", dataWithContext.slice(0, 10));
+//   // Connects to LanceDB
+//   // const db = await lancedb.connect("data/youtube-lancedb");
+//   // Wait for 5s
+//   // await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  let tbl;
+//   let tbl;
 
-  if ((await db.tableNames()).includes("vectors")) {
-    tbl = await db.openTable("vectors", embedFunction);
-    console.log("Opened table");
-  } else {
-    console.log("No table found - creating new table");
-    tbl = await db.createTable("vectors", dataWithContext, embedFunction);
-    console.log("Created table");
-  }
+//   if ((await db.tableNames()).includes("vectors")) {
+//     tbl = await db.openTable("vectors", embedFunction);
+//     console.log("Opened table");
+//   } else {
+//     console.log("No table found - creating new table");
+//     tbl = await db.createTable("vectors", dataWithContext, embedFunction);
+//     console.log("Created table");
+//   }
 
-  // await new Promise((resolve) => setTimeout(resolve, 5000));
+//   // await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  console.log(3);
-  const configuration = new Configuration({ apiKey });
-  const openai = new OpenAIApi(configuration);
-  // Create readline interface for terminal chat
-  // const rl = readline.createInterface({ input, output });
-  // const query = await rl.question("Prompt:");
-  const query =
-    "What education policies does this party have? Please answer in bullet points.";
-  console.log(`Searching for ${query}`);
-  // wait 5s
-  // await new Promise((resolve) => setTimeout(resolve, 5000));
-  const results = await tbl
-    .search(query)
-    .select(["id", "text", "context"])
-    .limit(60)
-    .execute();
+//   console.log(3);
+//   const configuration = new Configuration({ apiKey });
+//   const openai = new OpenAIApi(configuration);
+//   // Create readline interface for terminal chat
+//   // const rl = readline.createInterface({ input, output });
+//   // const query = await rl.question("Prompt:");
+//   const query =
+//     "What education policies does this party have? Please answer in bullet points.";
+//   console.log(`Searching for ${query}`);
+//   // wait 5s
+//   // await new Promise((resolve) => setTimeout(resolve, 5000));
+//   const results = await tbl
+//     .search(query)
+//     .select(["id", "text", "context"])
+//     .limit(60)
+//     .execute();
 
-  console.log("RESULTS", results);
+//   console.log("RESULTS", results);
 
-  const response = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: createPrompt(query, results),
-    max_tokens: 400,
-    temperature: 0,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-  });
-  console.log(response.data.choices[0].text);
-}
+//   const response = await openai.createCompletion({
+//     model: "text-davinci-003",
+//     prompt: createPrompt(query, results),
+//     max_tokens: 400,
+//     temperature: 0,
+//     top_p: 1,
+//     frequency_penalty: 0,
+//     presence_penalty: 0,
+//   });
+//   console.log(response.data.choices[0].text);
+// }
 
 // Creates a prompt by aggregating all relevant contexts
 function createPrompt(query: string, context: any) {

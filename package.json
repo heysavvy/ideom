@@ -19,10 +19,9 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "js-yaml": "^4.1.0",
-    "langchain": "^0.0.92",
     "lodash": "^4.17.21",
-    "pdfjs-dist": "^3.7.107",
-    "vectordb": "^0.1.5"
+    "openai": "^3.3.0",
+    "pdfjs-dist": "^3.7.107"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",

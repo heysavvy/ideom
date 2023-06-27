@@ -9,6 +9,9 @@
     "dev": "concurrently \"npx tsc --watch --sourcemap\" \"nodemon -q dist/index.js\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "engines": {
+    "node": "v18.16.0"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {

@@ -381,35 +381,35 @@ async function saveToVectorDatabase(
 
   console.log(`Saving ${documents.length} documents to database`);
 
-  for (const document of documents.slice(0, 20)) {
-    console.log(document);
-    console.log("-");
-    console.log("-----");
-    console.log("-");
+  for (const document of documents) {
+    // console.log(document);
+    // console.log("-");
+    // console.log("-----");
+    // console.log("-");
 
-    // // OpenAI recommends replacing newlines with spaces for best results
-    // const input = document.replace(/\n/g, " ").trim();
-    // const embeddingResponse = await openai.createEmbedding({
-    //   model: "text-embedding-ada-002",
-    //   input,
-    // });
-    // const [{ embedding }] = embeddingResponse.data.data;
-    // // In production we should handle possible errors
-    // const { data, error } = await supabaseClient
-    //   .from(tableName)
-    //   .insert({
-    //     content: document,
-    //     embedding,
-    //     metadata,
-    //     source_url: source.url,
-    //     source_type: source.type,
-    //   })
-    //   .select("id, content");
-    // if (error) {
-    //   console.error("Error saving to database:", error);
-    // } else {
-    //   console.log("Saved to database:", data);
-    // }
+    // OpenAI recommends replacing newlines with spaces for best results
+    const input = document.replace(/\n/g, " ").trim();
+    const embeddingResponse = await openai.createEmbedding({
+      model: "text-embedding-ada-002",
+      input,
+    });
+    const [{ embedding }] = embeddingResponse.data.data;
+    // In production we should handle possible errors
+    const { data, error } = await supabaseClient
+      .from(tableName)
+      .insert({
+        content: document,
+        embedding,
+        metadata,
+        source_url: source.url,
+        source_type: source.type,
+      })
+      .select("id, content");
+    if (error) {
+      console.error("Error saving to database:", error);
+    } else {
+      console.log("Saved to database:", data);
+    }
   }
 }
 // async function saveToLocalVectorDatabase(

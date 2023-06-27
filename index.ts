@@ -13,9 +13,10 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.get("/process", (req: Request, res: Response) => {
+  const process_key = req.query.process_key as string | null;
   const steps = req.body?.steps || null;
 
-  return run(steps).then(() => res.send("Processed!"));
+  return run({ process_key, steps }).then(() => res.send("Processed!"));
 });
 
 app.listen(port, () => {

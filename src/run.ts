@@ -24,27 +24,49 @@ type Step = {
 
 dotenv.config();
 
-// Load the YAML file
-const filePath = "processes/get_manifesto_pledges.yml";
-const yamlContent = fs.readFileSync(filePath, "utf8");
-
-let allStepData: any = {};
-
-// Parse the YAML into a JavaScript object
-const config: any = yaml.load(yamlContent);
-
 // // Process the main steps
 // processSteps(config.processes.get_manifesto_pledges.steps).then((stepData) => {
 //   console.log("stepData:\n", JSON.stringify(stepData, null, 2));
 // });
 
-export default function run(querySteps: Step[] | null) {
-  const steps: Step[] =
-    querySteps || (config.processes.get_manifesto_pledges.steps as Step[]);
+let allStepData: any = {};
+
+export default function run({
+  process_key,
+  steps,
+}: {
+  process_key: string | null;
+  steps: Step[] | null;
+}) {
+  console.log("steps:\n", JSON.stringify(steps, null, 2));
+  const stepsToRun: Step[] = (steps ||
+    getProcessSteps(process_key || "get_manifesto_pledges")) as Step[];
+
+  console.log("stepsToRun:\n", JSON.stringify(stepsToRun, null, 2));
 
   allStepData = {};
 
-  return processSteps(steps);
+  return processSteps(stepsToRun);
+}
+
+function getProcessSteps(processKey: string) {
+  // Load the YAML file
+  const filePath = `processes/${processKey}.yml`;
+  console.log(`Loading process steps from ${filePath}`);
+  const yamlContent = fs.readFileSync(filePath, "utf8");
+
+  // Parse the YAML into a JavaScript object
+  const config: any = yaml.load(yamlContent);
+
+  console.log("typeof config", typeof config);
+
+  console.log("config:\n", JSON.stringify(config, null, 2));
+
+  const steps = config.processes[processKey].steps;
+
+  console.log("steps:\n", JSON.stringify(steps, null, 2));
+
+  return steps;
 }
 
 // Process the steps
@@ -57,7 +79,7 @@ async function processSteps(steps: Step[], localStepData?: any) {
       outputs: {},
     };
     switch (step.type) {
-      case "loop":
+      case "loop": {
         const items = replacePlaceholders(step.with.items);
         console.log(`Looping over items: ${items}`, typeof items);
         stepData[step.key].inputs = items;
@@ -66,6 +88,7 @@ async function processSteps(steps: Step[], localStepData?: any) {
           const item = items[i];
           console.log(`Loop - item: ${item}`);
           stepData[step.key].current_step = { item, steps: {} };
+          stepData.current_loop_iteration = stepData[step.key].current_step;
           const innerSteps = await processSteps(
             step.steps,
             stepData[step.key].current_step.steps
@@ -74,12 +97,26 @@ async function processSteps(steps: Step[], localStepData?: any) {
         }
         // delete stepData[step.key].current_step;
         break;
-      case "load_input_data":
+      }
+      case "load_input_data": {
         console.log(`Loading input data: ${step.with.input_key}`);
         const listData = await loadInputData(step.with.input_key);
         stepData[step.key].outputs.data = listData;
         break;
-      case "extract_embeddings":
+      }
+      case "extract_embeddings": {
+        // Implement the logic for extracting embeddings
+        const url = replacePlaceholders(step.with.url);
+        const outputKey = replacePlaceholders(step.with.output_key);
+        console.log(`Extracting embeddings from ${step.with.input_type}`);
+        console.log(`URL: ${url}`);
+        console.log(`Output: ${output}`);
+        if (step.with.input_type == "pdf") {
+          const embeddings = await extractEmbeddingsFromPdf(url, outputKey);
+        }
+        break;
+      }
+      case "extract_embeddings_to_file": {
         // Implement the logic for extracting embeddings
         const url = replacePlaceholders(step.with.url);
         const output = replacePlaceholders(step.with.output);
@@ -90,13 +127,15 @@ async function processSteps(steps: Step[], localStepData?: any) {
           const embeddings = await extractEmbeddingsFromPdf(url, output);
         }
         break;
-      case "run_prompt_with_embeddings":
+      }
+      case "run_prompt_with_embeddings": {
         // Implement the logic for running prompt with embeddings
         console.log(`Running prompt with embeddings`);
         console.log(`Prompt: ${step.with.prompt}`);
         console.log(`Embeddings: ${step.with.embeddings}`);
         break;
-      case "save_output_data":
+      }
+      case "save_output_data": {
         // Implement the logic for saving the output
         console.log(`Saving Output Data: ${step.with.output_key}`);
         console.log(`Item: ${step.with.item}`);
@@ -108,21 +147,23 @@ async function processSteps(steps: Step[], localStepData?: any) {
         await saveOutputData(step.with.output_key, item, metadata);
         stepData[step.key].outputs.data = { item, metadata };
         break;
-      default:
+      }
+      default: {
         console.log(`Unknown step type: ${step.type}`);
         break;
+      }
     }
   }
   return stepData;
 }
 
 // Recursive function to replace placeholders with data
+// function replacePlaceholders<T>(value: T): T {
+//   const result = replacePlaceholders1(value);
+//   console.log("replacePlaceholders", allStepData, value, result);
+//   return result;
+// }
 function replacePlaceholders<T>(value: T): T {
-  const result = replacePlaceholders1(value);
-  console.log("replacePlaceholders", allStepData, value, result);
-  return result;
-}
-function replacePlaceholders1<T>(value: T): T {
   if (Array.isArray(value)) {
     return value.map((item) => replacePlaceholders(item)) as T;
   }
@@ -230,7 +271,8 @@ async function saveOutputData(
 
 async function extractEmbeddingsFromPdf(
   pdfUrl: string,
-  outputFileName: string
+  outputKey?: string,
+  outputFileName?: string
 ) {
   // pdfUrl =
   //   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
@@ -239,6 +281,7 @@ async function extractEmbeddingsFromPdf(
 
   console.log("Extracting embeddings from PDF");
   const chunkSize = 10;
+  if (!outputFileName) outputFileName = outputKey + ".yml";
   const outputFilePath = `outputs/${outputFileName.replace(
     /[/\\?%*:|"<>]/g,
     "_"

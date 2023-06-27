@@ -18,8 +18,8 @@ processes:
           items: ${{ steps.get_manifesto_urls.outputs.data }}
         steps:
           - name: Extract Embeddings from PDF
-            key: extract_embeddings
-            type: extract_embeddings
+            key: extract_embeddings_to_file
+            type: extract_embeddings_to_file
             with:
               input_type: pdf
               url: ${{ steps.loop_over_manifesto_urls.current_step.item }}

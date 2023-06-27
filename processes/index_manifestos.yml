@@ -19,6 +19,8 @@ processes:
               input_type: pdf
               url: ${{ current_loop_iteration.item }}
               output_key: ${{ current_loop_iteration.item }}
+              words_per_chunk: 120
+              chunk_overlap_percent: 25
           - name: Save Manifesto Chunks to Vector Database
             key: save_manifesto_to_vector_db
             type: save_to_vector_db

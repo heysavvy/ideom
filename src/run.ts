@@ -116,12 +116,21 @@ async function processSteps(steps: Step[], localStepData?: any) {
       case "extract_embeddings": {
         // Implement the logic for extracting embeddings
         const url = replacePlaceholders(step.with.url);
+        const wordsPerChunk = replacePlaceholders(step.with.words_per_chunk);
+        const chunkOverlapPercent = replacePlaceholders(
+          step.with.chunk_overlap_percent
+        );
         const outputKey = replacePlaceholders(step.with.output_key);
         console.log(`Extracting embeddings from ${step.with.input_type}`);
         console.log(`URL: ${url}`);
         console.log(`Output: ${output}`);
         if (step.with.input_type == "pdf") {
-          const { data } = await extractEmbeddingsFromPdf(url, outputKey);
+          const { data } = await extractEmbeddingsFromPdf(
+            url,
+            wordsPerChunk,
+            chunkOverlapPercent,
+            outputKey
+          );
           stepData.steps[step.key].outputs.documents = data;
         }
         break;
@@ -129,12 +138,22 @@ async function processSteps(steps: Step[], localStepData?: any) {
       case "extract_embeddings_to_file": {
         // Implement the logic for extracting embeddings
         const url = replacePlaceholders(step.with.url);
+        const wordsPerChunk = replacePlaceholders(step.with.words_per_chunk);
+        const chunkOverlapPercent = replacePlaceholders(
+          step.with.chunk_overlap_percent
+        );
         const output = replacePlaceholders(step.with.output);
         console.log(`Extracting embeddings from ${step.with.input_type}`);
         console.log(`URL: ${url}`);
         console.log(`Output: ${output}`);
         if (step.with.input_type == "pdf") {
-          const embeddings = await extractEmbeddingsFromPdf(url, output);
+          const embeddings = await extractEmbeddingsFromPdf(
+            url,
+            wordsPerChunk,
+            chunkOverlapPercent,
+            undefined,
+            output
+          );
         }
         break;
       }
@@ -187,7 +206,7 @@ async function processSteps(steps: Step[], localStepData?: any) {
 // Recursive function to replace placeholders with data
 function replacePlaceholders<T>(value: T): T {
   const result = replacePlaceholders1(value);
-  console.log("replacePlaceholders", allStepData, value, result);
+  // console.log("replacePlaceholders", allStepData, value, result);
   return result;
 }
 function replacePlaceholders1<T>(value: T): T {
@@ -300,6 +319,8 @@ async function saveOutputData(
 
 async function extractEmbeddingsFromPdf(
   pdfUrl: string,
+  wordsPerChunk?: number,
+  chunkOverlapPercent?: number,
   outputKey?: string,
   outputFileName?: string
 ) {
@@ -309,7 +330,12 @@ async function extractEmbeddingsFromPdf(
   // Usage
 
   console.log("Extracting embeddings from PDF");
-  const chunkSize = 10;
+  const chunkSize = wordsPerChunk || 100;
+  if (!chunkOverlapPercent) chunkOverlapPercent = 50;
+
+  console.log("Words per chunk:", chunkSize);
+  console.log("Chunk overlap percent:", chunkOverlapPercent);
+
   if (!outputFileName) outputFileName = outputKey + ".yml";
   const outputFilePath = `outputs/${outputFileName.replace(
     /[/\\?%*:|"<>]/g,
@@ -317,7 +343,7 @@ async function extractEmbeddingsFromPdf(
   )}`;
 
   const data: string[] = await fetchPDF(pdfUrl).then((pdfData) =>
-    extractTextChunks(pdfData, chunkSize)
+    extractTextChunks(pdfData, chunkSize, chunkOverlapPercent as number)
   );
   // .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
   // .catch((error) => console.error("Error:", error));
@@ -353,34 +379,37 @@ async function saveToVectorDatabase(
     }
   );
 
-  for (const document of documents) {
-    // OpenAI recommends replacing newlines with spaces for best results
-    const input = document.replace(/\n/g, " ").trim();
+  console.log(`Saving ${documents.length} documents to database`);
 
-    const embeddingResponse = await openai.createEmbedding({
-      model: "text-embedding-ada-002",
-      input,
-    });
+  for (const document of documents.slice(0, 20)) {
+    console.log(document);
+    console.log("-");
+    console.log("-----");
+    console.log("-");
 
-    const [{ embedding }] = embeddingResponse.data.data;
-
-    // In production we should handle possible errors
-    const { data, error } = await supabaseClient
-      .from(tableName)
-      .insert({
-        content: document,
-        embedding,
-        metadata,
-        source_url: source.url,
-        source_type: source.type,
-      })
-      .select("id, content");
-
-    if (error) {
-      console.error("Error saving to database:", error);
-    } else {
-      console.log("Saved to database:", data);
-    }
+    // // OpenAI recommends replacing newlines with spaces for best results
+    // const input = document.replace(/\n/g, " ").trim();
+    // const embeddingResponse = await openai.createEmbedding({
+    //   model: "text-embedding-ada-002",
+    //   input,
+    // });
+    // const [{ embedding }] = embeddingResponse.data.data;
+    // // In production we should handle possible errors
+    // const { data, error } = await supabaseClient
+    //   .from(tableName)
+    //   .insert({
+    //     content: document,
+    //     embedding,
+    //     metadata,
+    //     source_url: source.url,
+    //     source_type: source.type,
+    //   })
+    //   .select("id, content");
+    // if (error) {
+    //   console.error("Error saving to database:", error);
+    // } else {
+    //   console.log("Saved to database:", data);
+    // }
   }
 }
 // async function saveToLocalVectorDatabase(
@@ -512,35 +541,41 @@ async function fetchPDF(url: string) {
 // Function to extract text from the PDF and break it into chunks
 async function extractTextChunks(
   pdfData: any,
-  chunkSize: number
+  chunkSize: number,
+  chunkOverlapPercent: number
 ): Promise<string[]> {
   console.log("Extracting text from PDF...");
   console.log("Chunk size:", chunkSize);
 
-  console.log("pdfjs", pdfjs);
-
   const loadingTask = await pdfjs.getDocument(pdfData);
 
   const doc = await loadingTask.promise;
-  console.log("PDF loaded", doc);
+  console.log("PDF loaded");
   const numPages = doc.numPages;
   console.log("Number of pages:", numPages);
 
   let chunks = [];
 
+  const chunkIncrement = Math.round(
+    chunkSize * (1 - chunkOverlapPercent / 100)
+  );
+  console.log("Chunk increment in words", chunkIncrement);
+
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await doc.getPage(pageNum);
-    console.log("Page loaded:", pageNum);
-    console.log("Extracting text...");
+    // console.log("Page loaded:", pageNum);
+    // console.log("Extracting text...");
     const content = await page.getTextContent();
-    console.log("Text extracted");
-    console.log("Number of items:", content.items.length);
+    // console.log("Text extracted");
+    // console.log("Number of items:", content.items.length);
     // console.log("Items:", content.items);
     const strings = content.items.map((item) => (item as any).str as string);
 
+    const pageTextByWord = strings.join(" ").split(" ");
+
     // Break the text into chunks of desired size
-    for (let i = 0; i < strings.length; i += chunkSize) {
-      const chunk = strings.slice(i, i + chunkSize).join(" ");
+    for (let i = 0; i < pageTextByWord.length; i += chunkIncrement) {
+      const chunk = pageTextByWord.slice(i, i + chunkSize).join(" ");
       chunks.push(chunk);
     }
   }

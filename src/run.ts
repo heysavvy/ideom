@@ -1,10 +1,10 @@
 import fs from "fs";
 import yaml from "js-yaml";
 import fetch from "node-fetch";
-import pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist";
 import { set } from "lodash";
 import get from "lodash/get";
-import lancedb from "vectordb";
+import * as lancedb from "vectordb";
 import { Configuration, OpenAIApi } from "openai";
 import readline from "readline/promises";
 // import { OpenAIEmbeddings } from "langchain/embeddings/openai";
@@ -304,8 +304,10 @@ async function extractEmbeddingsFromPdf(
   const configuration = new Configuration({ apiKey });
   const openai = new OpenAIApi(configuration);
   // Create readline interface for terminal chat
-  const rl = readline.createInterface({ input, output });
-  const query = await rl.question("Prompt:");
+  // const rl = readline.createInterface({ input, output });
+  // const query = await rl.question("Prompt:");
+  const query =
+    "What education policies does this party have? Please answer in bullet points.";
   console.log(`Searching for ${query}`);
   // wait 5s
   // await new Promise((resolve) => setTimeout(resolve, 5000));

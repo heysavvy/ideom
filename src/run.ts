@@ -1,15 +1,13 @@
-import fs from "fs";
-import yaml from "js-yaml";
+import * as fs from "fs";
+import * as yaml from "js-yaml";
 import fetch from "node-fetch";
 import * as pdfjs from "pdfjs-dist";
-import { set } from "lodash";
-import get from "lodash/get";
+import { get, set } from "lodash";
 import * as lancedb from "vectordb";
 import { Configuration, OpenAIApi } from "openai";
-import readline from "readline/promises";
 // import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import { stdin as input, stdout as output } from "process";
 
 type Step = {

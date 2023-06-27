@@ -24,6 +24,9 @@ processes:
             type: save_to_vector_db
             with:
               table_name: context_embeddings
-              records: ${{ current_loop_iteration.steps.extract_embeddings.outputs }}
+              documents: ${{ current_loop_iteration.steps.extract_embeddings.outputs.documents }}
+              source:
+                type: manifesto
+                url: ${{ current_loop_iteration.item }}
               metadata:
                 manifesto: ${{ current_loop_iteration.item }}

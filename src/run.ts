@@ -5,6 +5,8 @@ import * as pdfjs from "pdfjs-dist";
 import { get, set } from "lodash";
 import * as lancedb from "vectordb";
 import { Configuration, OpenAIApi } from "openai";
+import { createClient } from "@supabase/supabase-js";
+
 // import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
 import * as dotenv from "dotenv";
@@ -27,7 +29,9 @@ dotenv.config();
 //   console.log("stepData:\n", JSON.stringify(stepData, null, 2));
 // });
 
-let allStepData: any = {};
+let allStepData: any = {
+  steps: {},
+};
 
 export default function run({
   process_key,
@@ -42,7 +46,9 @@ export default function run({
 
   console.log("stepsToRun:\n", JSON.stringify(stepsToRun, null, 2));
 
-  allStepData = {};
+  allStepData = {
+    steps: {},
+  };
 
   return processSteps(stepsToRun);
 }
@@ -69,37 +75,42 @@ function getProcessSteps(processKey: string) {
 
 // Process the steps
 async function processSteps(steps: Step[], localStepData?: any) {
+  console.log("localStepData", localStepData);
   const stepData = localStepData || allStepData;
+  console.log("stepData", stepData);
+  console.log("stepData.steps", stepData.steps);
+
   for (const step of steps) {
     // Wait 1s
     // await new Promise((resolve) => setTimeout(resolve, 500));
-    stepData[step.key] = {
+    stepData.steps[step.key] = {
       outputs: {},
     };
     switch (step.type) {
       case "loop": {
         const items = replacePlaceholders(step.with.items);
         console.log(`Looping over items: ${items}`, typeof items);
-        stepData[step.key].inputs = items;
-        stepData[step.key].items = [];
+        stepData.steps[step.key].inputs = items;
+        stepData.steps[step.key].items = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           console.log(`Loop - item: ${item}`);
-          stepData[step.key].current_step = { item, steps: {} };
-          stepData.current_loop_iteration = stepData[step.key].current_step;
+          stepData.steps[step.key].current_step = { item, steps: {} };
+          allStepData.current_loop_iteration =
+            stepData.steps[step.key].current_step;
           const innerSteps = await processSteps(
             step.steps,
-            stepData[step.key].current_step.steps
+            stepData.steps[step.key].current_step
           );
-          stepData[step.key].items.push({ item, steps: innerSteps });
+          stepData.steps[step.key].items.push({ item, steps: innerSteps });
         }
-        // delete stepData[step.key].current_step;
+        // delete stepData.steps[step.key].current_step;
         break;
       }
       case "load_input_data": {
         console.log(`Loading input data: ${step.with.input_key}`);
         const listData = await loadInputData(step.with.input_key);
-        stepData[step.key].outputs.data = listData;
+        stepData.steps[step.key].outputs.data = listData;
         break;
       }
       case "extract_embeddings": {
@@ -110,7 +121,8 @@ async function processSteps(steps: Step[], localStepData?: any) {
         console.log(`URL: ${url}`);
         console.log(`Output: ${output}`);
         if (step.with.input_type == "pdf") {
-          const embeddings = await extractEmbeddingsFromPdf(url, outputKey);
+          const { data } = await extractEmbeddingsFromPdf(url, outputKey);
+          stepData.steps[step.key].outputs.documents = data;
         }
         break;
       }
@@ -133,6 +145,23 @@ async function processSteps(steps: Step[], localStepData?: any) {
         console.log(`Embeddings: ${step.with.embeddings}`);
         break;
       }
+      case "save_to_vector_db": {
+        // Implement the logic for saving to vector db
+        console.log(`Saving to vector db`);
+        console.log(`Embeddings: ${step.with.documents}`);
+        console.log(`Metadata: ${step.with.metadata}`);
+        const documents = replacePlaceholders(step.with.documents);
+        const tableName = replacePlaceholders(step.with.table_name);
+        const metadata = replacePlaceholders(step.with.metadata);
+        const source = replacePlaceholders(step.with.source);
+
+        console.log(allStepData.current_loop_iteration.steps);
+
+        console.log(`Documents: ${JSON.stringify(documents).slice(0, 1000)}`);
+
+        saveToVectorDatabase(documents, tableName, metadata, source);
+        break;
+      }
       case "save_output_data": {
         // Implement the logic for saving the output
         console.log(`Saving Output Data: ${step.with.output_key}`);
@@ -143,7 +172,7 @@ async function processSteps(steps: Step[], localStepData?: any) {
         console.log(`Replaced Item: ${item}`);
         console.log(`Replaced Metadata: ${JSON.stringify(metadata)}`);
         await saveOutputData(step.with.output_key, item, metadata);
-        stepData[step.key].outputs.data = { item, metadata };
+        stepData.steps[step.key].outputs.data = { item, metadata };
         break;
       }
       default: {
@@ -156,12 +185,12 @@ async function processSteps(steps: Step[], localStepData?: any) {
 }
 
 // Recursive function to replace placeholders with data
-// function replacePlaceholders<T>(value: T): T {
-//   const result = replacePlaceholders1(value);
-//   console.log("replacePlaceholders", allStepData, value, result);
-//   return result;
-// }
 function replacePlaceholders<T>(value: T): T {
+  const result = replacePlaceholders1(value);
+  console.log("replacePlaceholders", allStepData, value, result);
+  return result;
+}
+function replacePlaceholders1<T>(value: T): T {
   if (Array.isArray(value)) {
     return value.map((item) => replacePlaceholders(item)) as T;
   }
@@ -179,7 +208,9 @@ function replacePlaceholders<T>(value: T): T {
   if (typeof value === "string") {
     const wholeStringPattern = /^\$\{\{(\s)?(\w+(\.\w+)*)(\s)?\}\}$/g;
     if (value.trim().match(wholeStringPattern)) {
-      const path = value.trim().slice(4, -3).split(".").slice(1).join(".");
+      console.log("WHOLE STRING", value);
+      const path = value.trim().slice(4, -3);
+      console.log("PATH", path);
       const result = get(allStepData, path);
       // console.log("PATH, RESULT", path, result);
       // console.log(typeof result);
@@ -189,7 +220,7 @@ function replacePlaceholders<T>(value: T): T {
     const result = value.replace(partialPattern, (match, str) => {
       // console.log("MATCH", match);
       // console.log("STR", str);
-      const path = match.slice(4, -3).split(".").slice(1).join(".");
+      const path = match.slice(4, -3);
       const val = get(allStepData, path);
       // console.log("PATH, VALUE", path, val);
       // console.log(typeof val);
@@ -285,16 +316,80 @@ async function extractEmbeddingsFromPdf(
     "_"
   )}`;
 
-  const data = await fetchPDF(pdfUrl)
+  const data: string[] = await fetchPDF(pdfUrl)
     .then((pdfData) => extractTextChunks(pdfData, chunkSize))
     .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
     .catch((error) => console.error("Error:", error));
 
   // Embedded in your app, no servers to manage!
 
+  return {
+    data,
+    output_file_name: outputFileName,
+  };
+}
+
+async function saveToVectorDatabase(
+  documents: string[],
+  tableName: string,
+  metadata: { [key: string]: any },
+  source: {
+    url: string;
+    type: string;
+  }
+) {
+  const apiKey = process.env.OPENAI_API_KEY as string;
+  const configuration = new Configuration({ apiKey });
+  const openai = new OpenAIApi(configuration);
+
+  const supabaseClient = createClient(
+    process.env.SUPABASE_URL ?? "",
+    process.env.SUPABASE_KEY ?? "",
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
+
+  for (const document of documents) {
+    // OpenAI recommends replacing newlines with spaces for best results
+    const input = document.replace(/\n/g, " ").trim();
+
+    const embeddingResponse = await openai.createEmbedding({
+      model: "text-embedding-ada-002",
+      input,
+    });
+
+    const [{ embedding }] = embeddingResponse.data.data;
+
+    // In production we should handle possible errors
+    const { data, error } = await supabaseClient
+      .from(tableName)
+      .insert({
+        content: document,
+        embedding,
+        metadata,
+        source_url: source.url,
+        source_type: source.type,
+      })
+      .select("id, content");
+
+    if (error) {
+      console.error("Error saving to database:", error);
+    } else {
+      console.log("Saved to database:", data);
+    }
+  }
+}
+async function saveToLocalVectorDatabase(
+  chunks: string[],
+  tableName: string,
+  metadata: { [key: string]: any }
+) {
   console.log(1);
   // Persist your embeddings, metadata, text, images, video, audio & more
-  const db = await lancedb.connect("./data/my_db");
+  const db = await lancedb.connect(`./data/my_db/${tableName}`);
   // const table = await db.openTable("my_table");
 
   // const table = await db.createTable("my_table", [
@@ -316,10 +411,11 @@ async function extractEmbeddingsFromPdf(
   // The embedding function will create embeddings for the 'context' column
   const embedFunction = new lancedb.OpenAIEmbeddingFunction("context", apiKey);
 
-  const dataAsObject = data.map((item: any, index: number) => ({
+  const dataAsObject = chunks.map((item: any, index: number) => ({
     // Generate a string ID using Math.random(),
     id: index,
     text: item,
+    metadata,
   }));
   const dataWithContext = contextualize(dataAsObject, 6);
   console.log("dataWithContext", dataWithContext.slice(0, 10));
@@ -404,7 +500,7 @@ function contextualize(rows: any[], contextSize: number) {
 
 // Function to fetch the PDF from a URL
 async function fetchPDF(url: string) {
-  console.log("Fetching PDF...");
+  console.log("Fetching PDF...", url);
   const response = await fetch(url);
   console.log("PDF fetched");
   const buffer = await response.buffer();
@@ -413,7 +509,10 @@ async function fetchPDF(url: string) {
 }
 
 // Function to extract text from the PDF and break it into chunks
-async function extractTextChunks(pdfData: any, chunkSize: number) {
+async function extractTextChunks(
+  pdfData: any,
+  chunkSize: number
+): Promise<string[]> {
   console.log("Extracting text from PDF...");
   console.log("Chunk size:", chunkSize);
 

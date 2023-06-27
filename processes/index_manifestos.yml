@@ -31,4 +31,5 @@ processes:
                 type: manifesto
                 url: ${{ current_loop_iteration.item }}
               metadata:
+                source_type: manifesto
                 manifesto: ${{ current_loop_iteration.item }}

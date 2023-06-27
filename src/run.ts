@@ -316,10 +316,11 @@ async function extractEmbeddingsFromPdf(
     "_"
   )}`;
 
-  const data: string[] = await fetchPDF(pdfUrl)
-    .then((pdfData) => extractTextChunks(pdfData, chunkSize))
-    .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
-    .catch((error) => console.error("Error:", error));
+  const data: string[] = await fetchPDF(pdfUrl).then((pdfData) =>
+    extractTextChunks(pdfData, chunkSize)
+  );
+  // .then((chunks) => storeChunksAsYAML(chunks, outputFilePath))
+  // .catch((error) => console.error("Error:", error));
 
   // Embedded in your app, no servers to manage!
 

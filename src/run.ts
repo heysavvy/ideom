@@ -47,8 +47,12 @@ export default function run({
   const ingestIdentifier = `${new Date().toISOString()}---${`${Math.random()}`.slice(
     2
   )}`;
-  const allStepData = {
+  const allStepData: {
+    steps: any;
+    current_loop_iteration: any;
+  } = {
     steps: {},
+    current_loop_iteration: {},
   };
 
   return processSteps(stepsToRun);

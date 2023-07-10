@@ -2,23 +2,23 @@ processes:
   index_data_sources:
     steps:
       - name: Get Data Source URLs
-        key: get_data_source_urls
+        key: get_data_sources
         type: load_input_data
         with:
-          input_key: data_source_urls
+          input_key: data_sources
       - name: Loop over Data Source URLs
-        key: loop_over_data_source_urls
+        key: loop_over_data_sources
         type: loop
         with:
-          items: ${{ steps.get_data_source_urls.outputs.data }}
+          items: ${{ steps.get_data_sources.outputs.data }}
         steps:
           - name: Extract Embeddings from Webpage
             key: extract_embeddings
             type: extract_embeddings
             with:
               input_type: webpage
-              url: ${{ current_loop_iteration.item }}
-              output_key: ${{ current_loop_iteration.item }}
+              url: ${{ current_loop_iteration.item.url }}
+              output_key: ${{ current_loop_iteration.item.url }}
               words_per_chunk: 120
               chunk_overlap_percent: 25
           - name: Save Data Source Chunks to Vector Database
@@ -29,10 +29,10 @@ processes:
               documents: ${{ current_loop_iteration.steps.extract_embeddings.outputs.documents }}
               source:
                 type: data_source
-                url: ${{ current_loop_iteration.item }}
-                # org:
-                # doc_title:
+                url: ${{ current_loop_iteration.item.url }}
+                org: ${{ current_loop_iteration.item.source }}
+                doc_title: ${{ current_loop_iteration.item.title }}
               metadata:
                 source_type: data_source
-                data_source: ${{ current_loop_iteration.item }}
-              # notes:
+                data_source: ${{ current_loop_iteration.item.url }}
+                topics: ${{ current_loop_iteration.item.metadata.topics }}

@@ -1,0 +1,37 @@
+# - https://labour.org.uk/wp-content/uploads/2019/11/Real-Change-Labour-Manifesto-2019.pdf
+
+# - title: UK Conservative Party 2019 Manifesto
+#   url: https://assets-global.website-files.com/5da42e2cae7ebd3f8bde353c/5dda924905da587992a064ba_Conservative%202019%20Manifesto.pdf
+#   source: Conservative Party
+#   metadata:
+#     year: 2019
+#     country: UK
+#     level: national
+#     status: final
+
+- title: UK Liberal Democrat Party 2019 Manifesto
+  url: https://www.libdems.org.uk/fileadmin/groups/2_Federal_Party/Documents/From_NB/Stop_Brexit_and_Build_a_Brighter_Future.pdf
+  source: Liberal Democrat Party
+  metadata:
+    year: 2019
+    country: UK
+    level: national
+    status: final
+
+- title: UK Green Party 2019 Manifesto
+  url: https://www.greenparty.org.uk/assets/files/Elections/Green%20Party%20Manifesto%202019.pdf
+  source: Green Party
+  metadata:
+    year: 2019
+    country: UK
+    level: national
+    status: final
+
+- title: UK Brexit Party 2019 Manifesto
+  url: https://www.thebrexitparty.org/wp-content/uploads/2019/11/Contract-With-The-People.pdf
+  source: Brexit Party
+  metadata:
+    year: 2019
+    country: UK
+    level: national
+    status: final

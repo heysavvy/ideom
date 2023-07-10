@@ -119,6 +119,11 @@ export default function run({
         }
         case "extract_embeddings": {
           // Implement the logic for extracting embeddings
+
+          console.log(
+            "allStepData.current_loop_iteration.item",
+            allStepData.current_loop_iteration.item
+          );
           const url = replacePlaceholders(step.with.url);
           const wordsPerChunk = replacePlaceholders(step.with.words_per_chunk);
           const chunkOverlapPercent = replacePlaceholders(
@@ -187,7 +192,13 @@ export default function run({
 
           console.log(`Documents: ${JSON.stringify(documents).slice(0, 1000)}`);
 
-          saveToVectorDatabase(documents, tableName, metadata, source, notes);
+          await saveToVectorDatabase(
+            documents,
+            tableName,
+            metadata,
+            source,
+            notes
+          );
           break;
         }
         case "save_output_data": {
@@ -215,7 +226,7 @@ export default function run({
   // Recursive function to replace placeholders with data
   function replacePlaceholders<T>(value: T): T {
     const result = replacePlaceholders1(value);
-    // console.log("replacePlaceholders", allStepData, value, result);
+    console.log("replacePlaceholders", value, result);
     return result;
   }
   function replacePlaceholders1<T>(value: T): T {
@@ -468,6 +479,8 @@ export default function run({
         console.log("Saved to database");
       }
     }
+
+    console.log(`Done ${documents.length} documents saving to database!`);
   }
   // async function saveToLocalVectorDatabase(
   //   chunks: string[],
@@ -642,7 +655,11 @@ export default function run({
 
   // Function to fetch the PDF from a URL
   async function fetchWebpage(url: string) {
-    console.log("Fetching Webpage...", url);
+    console.log(
+      "Fetching Webpage...",
+      `( a ${typeof url} of length ${url?.length})`,
+      url
+    );
     const response = await fetch(url);
     console.log("Webpage fetched");
     const html = await response.text();

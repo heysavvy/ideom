@@ -2,23 +2,23 @@ processes:
   index_manifestos:
     steps:
       - name: Get Manifesto URLs
-        key: get_manifesto_urls
+        key: get_manifestos
         type: load_input_data
         with:
-          input_key: manifesto_urls
+          input_key: manifestos
       - name: Loop over Manifesto URLs
-        key: loop_over_manifesto_urls
+        key: loop_over_manifestos
         type: loop
         with:
-          items: ${{ steps.get_manifesto_urls.outputs.data }}
+          items: ${{ steps.get_manifestos.outputs.data }}
         steps:
           - name: Extract Embeddings from PDF
             key: extract_embeddings
             type: extract_embeddings
             with:
               input_type: pdf
-              url: ${{ current_loop_iteration.item }}
-              output_key: ${{ current_loop_iteration.item }}
+              url: ${{ current_loop_iteration.item.url }}
+              output_key: ${{ current_loop_iteration.item.url }}
               words_per_chunk: 120
               chunk_overlap_percent: 25
           - name: Save Manifesto Chunks to Vector Database
@@ -29,7 +29,13 @@ processes:
               documents: ${{ current_loop_iteration.steps.extract_embeddings.outputs.documents }}
               source:
                 type: manifesto
-                url: ${{ current_loop_iteration.item }}
+                url: ${{ current_loop_iteration.item.url }}
+                org: ${{ current_loop_iteration.item.source }}
+                doc_title: ${{ current_loop_iteration.item.title }}
               metadata:
                 source_type: manifesto
-                manifesto: ${{ current_loop_iteration.item }}
+                manifesto: ${{ current_loop_iteration.item.url }}
+                year: ${{ current_loop_iteration.item.metadata.year }}
+                country: ${{ current_loop_iteration.item.metadata.country }}
+                level: ${{ current_loop_iteration.item.metadata.level }}
+                status: ${{ current_loop_iteration.item.metadata.status }}

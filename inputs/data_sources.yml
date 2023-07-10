@@ -1,0 +1,84 @@
+# - title: Average earnings
+#   url: https://www.ons.gov.uk/peoplepopulationandcommunity/personalandhouseholdfinances/incomeandwealth/bulletins/householddisposableincomeandinequality/financialyearending2022#:~:text=Main%20points,(ONS)%20Household%20Finances%20Survey.
+#   source: ONS
+#   metadata:
+#     topics: economy
+
+# - title: Tax brackets
+#   url: https://www.nerdwallet.com/uk/personal-finance/tax-brackets-and-allowances/
+#   source:
+#   metadata:
+#     topics: economy
+
+# - title: Average interest rates in 2023
+#   url: https://commonslibrary.parliament.uk/research-briefings/sn02802/
+#   source:
+#   metadata:
+#     topics: economy
+
+# - title: Current GDP levels
+#   url: https://www.ons.gov.uk/economy/grossdomesticproductgdp
+#   source: ONS
+#   metadata:
+#     topics: economy
+
+# - title: Trade balance (exports minus imports) for UK in 2022
+#   url: https://www.ons.gov.uk/economy/nationalaccounts/balanceofpayments/bulletins/uktrade/december2022
+#   source: ONS
+#   metadata:
+#     topics: economy
+
+# - title: Average household savings rate in UK
+#   url: https://www.nimblefins.co.uk/savings-accounts/average-household-savings-uk
+#   source:
+#   metadata:
+#     topics: economy
+
+# - title: UK Budget
+#   url: https://en.wikipedia.org/wiki/2023_United_Kingdom_budget
+#   source: Wikipedia
+#   metadata:
+#     topics: economy
+
+# - title: Cost of living in UK 2021-present
+#   url: https://en.wikipedia.org/wiki/2021%E2%80%93present_United_Kingdom_cost-of-living_crisis
+#   source: Wikipedia
+#   metadata:
+#     topics: economy
+
+# - title: Public sector finances
+#   url: https://www.ons.gov.uk/economy/governmentpublicsectorandtaxes/publicsectorfinance/bulletins/publicsectorfinances/january2023
+#   source:
+#   metadata:
+#     topics: economy
+
+# - title: Average NHS Waiting Time
+#   url: https://commonslibrary.parliament.uk/research-briefings/cbp-7281/#:~:text=In%20December%202022%2C%2054.4%25%20of,This%20was%20a%20record%20low.
+#   source:
+#   metadata:
+#     topics: health
+#   notes: Summary of NHS demand, performance, backlogs, and capacity of services in England. It covers A&E statistics, waiting lists, cancer waiting times, ambulance response times, delayed discharges, staffing levels including doctors and nurses, and more.
+
+# - title: Cancer Research Funding
+#   url: https://publications.parliament.uk/pa/cm199900/cmselect/cmsctech/332/33209.htm
+#   source:
+#   metadata:
+#     topics: health
+
+# - title: "Mental Health Services: Availability and Accessibility"
+#   url: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8381091/
+#   source:
+#   metadata:
+#     topics: health
+
+# - title: "Obesity and Diabetes: Prevention and Treatment"
+#   url: https://www.gov.uk/government/publications/health-matters-preventing-type-2-diabetes/health-matters-preventing-type-2-diabetes
+#   source: GOV.UK
+#   metadata:
+#     topics: health
+
+# - title: "Health Insurance: Coverage and Affordability"
+#   url: https://www.commonwealthfund.org/international-health-policy-center/countries/england#:~:text=All%20English%20residents%20are%20automatically,funded%20primarily%20through%20general%20taxation.
+#   source:
+#   metadata:
+#     topics: health
